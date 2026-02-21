@@ -14,8 +14,9 @@ export default async function handler(req, res) {
   }
 
   const d = req.body;
-  const str = (v) => (v && String(v).trim()) || null;
+  const str = (v) => (v && String(v).trim()) || '';
   const arr = (v) => Array.isArray(v) ? v : (v ? [v] : []);
+  const strOrNull = (v) => str(v) || null;
 
   const langLabel = { ru: '🇷🇺 Русский', en: '🇬🇧 English', ua: '🇺🇦 Українська' };
 
@@ -75,6 +76,7 @@ export default async function handler(req, res) {
     return 'Нужна консультация';
   };
 
+  // ── Notion properties ─────────────────────────────────────────────────────
   const properties = {
     'Проект': { title: [{ text: { content: projectTitle } }] },
     'Статус': { select: { name: '📋 Анкета заполнена' } },
@@ -101,7 +103,6 @@ export default async function handler(req, res) {
 
   setEmail('Email для заявок', d.contactEmail);
   setEmail('Тех. почта', d.techEmail);
-
   setPhone('WhatsApp', d.contactWa);
 
   setUrl('Текущий сайт', d.currentSite);
@@ -116,11 +117,11 @@ export default async function handler(req, res) {
   if (budgetNum) properties['Бюджет (€)'] = { number: budgetNum };
 
   setSelect('Тон общения', mapOne(d.tone, toneMap));
-  setSelect('Статус домена', str(d.domainStatus));
-  setSelect('Хостинг', str(d.hosting));
-  setSelect('Онлайн-запись', str(d.booking));
+  setSelect('Статус домена', strOrNull(d.domainStatus));
+  setSelect('Хостинг', strOrNull(d.hosting));
+  setSelect('Онлайн-запись', strOrNull(d.booking));
   setSelect('Админ-панель', cmsMap(d.cms));
-  setSelect('Обработка фото', str(d.photoStatus));
+  setSelect('Обработка фото', strOrNull(d.photoStatus));
   setSelect('Язык анкеты', langLabel[d.lang] || null);
 
   setMulti('Цель сайта', mapArr(d.siteGoal, goalMap));
@@ -130,31 +131,159 @@ export default async function handler(req, res) {
   setMulti('Заявки куда', arr(d.contactForm));
   setMulti('Аналитика', arr(d.analytics));
 
-  // ── Page body ─────────────────────────────────────────────────────────────
-  const children = [];
+  // ── Helpers for page body ─────────────────────────────────────────────────
+  const val = (v, fallback = '—') => str(v) || fallback;
+  const valArr = (v, fallback = '—') => arr(v).length ? arr(v).join(', ') : fallback;
 
-  const addNote = (label, value) => {
-    if (!value) return;
-    const v = Array.isArray(value) ? value.join(', ') : String(value);
-    if (!v.trim()) return;
-    children.push({
-      object: 'block', type: 'paragraph',
-      paragraph: {
-        rich_text: [
-          { text: { content: `${label}: ` }, annotations: { bold: true } },
-          { text: { content: v } },
-        ],
-      },
-    });
-  };
+  const para = (text) => ({
+    object: 'block', type: 'paragraph',
+    paragraph: { rich_text: [{ text: { content: text } }] },
+  });
 
-  addNote('Услуги и цены', d.servicesText);
-  addNote('Тексты для сайта', d.mainText);
-  addNote('FAQ', d.faq);
-  addNote('Отзывы', d.reviews);
-  addNote('Нравится в референсе 1', d.ref1note);
-  addNote('Нравится в референсе 2', d.ref2note);
-  addNote('Дополнительно', d.extra);
+  const boldPara = (label, value) => ({
+    object: 'block', type: 'paragraph',
+    paragraph: {
+      rich_text: [
+        { text: { content: `${label}: ` }, annotations: { bold: true } },
+        { text: { content: value } },
+      ],
+    },
+  });
+
+  const h2 = (text) => ({
+    object: 'block', type: 'heading_2',
+    heading_2: { rich_text: [{ text: { content: text } }] },
+  });
+
+  const h3 = (text) => ({
+    object: 'block', type: 'heading_3',
+    heading_3: { rich_text: [{ text: { content: text } }] },
+  });
+
+  const divider = () => ({ object: 'block', type: 'divider', divider: {} });
+
+  const code = (text) => ({
+    object: 'block', type: 'code',
+    code: {
+      rich_text: [{ text: { content: text } }],
+      language: 'javascript',
+    },
+  });
+
+  // ── Build AI prompt with client data ─────────────────────────────────────
+  const siteType = valArr(d.siteGoal);
+  const sections = mapArr(d.sections, sectionsMap);
+
+  const contactDetails = [];
+  if (str(d.contactEmail)) contactDetails.push(`Email: ${str(d.contactEmail)}`);
+  if (str(d.contactTg)) contactDetails.push(`Telegram: ${str(d.contactTg)}`);
+  if (str(d.contactWa)) contactDetails.push(`WhatsApp: ${str(d.contactWa)}`);
+
+  const refs = [];
+  if (str(d.ref1)) refs.push(`${str(d.ref1)}${str(d.ref1note) ? ` (${str(d.ref1note)})` : ''}`);
+  if (str(d.ref2)) refs.push(`${str(d.ref2)}${str(d.ref2note) ? ` (${str(d.ref2note)})` : ''}`);
+
+  const socialLinks = [];
+  if (str(d.instagram)) socialLinks.push(`Instagram: ${str(d.instagram)}`);
+  if (str(d.facebook)) socialLinks.push(`Facebook: ${str(d.facebook)}`);
+  if (str(d.tiktok)) socialLinks.push(`TikTok: ${str(d.tiktok)}`);
+
+  const aiPrompt = `Create a professional ${siteType} website for ${val(d.brandName)}.
+
+Business: ${val(d.industry)}
+USP: ${val(d.usp)}
+Target audience: ${val(d.audience)}
+Tone of voice: ${mapOne(d.tone, toneMap) || val(d.tone)}
+Primary CTA: ${valArr(d.cta)}
+Languages: ${valArr(d.languages)}
+
+Pages/sections needed:
+${sections.length ? sections.map(s => `- ${s}`).join('\n') : '— not specified'}
+
+Services:
+${val(d.servicesText)}
+
+Design preferences:
+- Liked references: ${refs.length ? refs.join('\n  ') : '— not specified'}
+- Avoid: ${val(d.dislike)}
+- Brand colors: ${val(d.colors)}
+- Photo status: ${val(d.photoStatus)}
+- Photo link: ${val(d.photoLink)}
+
+Functional requirements:
+- Contact form → ${contactDetails.length ? contactDetails.join(', ') : '— not specified'}
+- Booking: ${val(d.booking)}
+- Social links: ${socialLinks.length ? socialLinks.join(', ') : '— not specified'}
+- Google Maps: ${val(d.address)}
+- Analytics: ${valArr(d.analytics)}
+- CMS needed: ${cmsMap(d.cms) || '— not specified'}
+
+Content provided:
+${val(d.mainText)}
+
+FAQ:
+${val(d.faq)}
+
+Reviews/testimonials:
+${val(d.reviews)}
+
+Technical:
+- Domain: ${val(d.domain)} (${val(d.domainStatus)})
+- Hosting: ${val(d.hosting)}
+- Tech email: ${val(d.techEmail)}
+- GDPR/Cookie compliance: required (EU/Lithuania)
+
+Budget: ${budgetNum ? `€${budgetNum}` : '— not specified'}
+Deadline: ${val(d.deadline)}
+Contact: ${val(d.contactPerson)} — ${val(d.contactMethod)}
+Decision maker: ${val(d.decisionMaker)}
+
+Additional notes:
+${val(d.extra)}
+
+Please create a modern, responsive, SEO-optimized website with clean design.`;
+
+  // ── Page children blocks ──────────────────────────────────────────────────
+  const children = [
+    h2('📝 Детали брифа'),
+    divider(),
+    boldPara('Услуги и цены', val(d.servicesText)),
+    boldPara('Тексты для сайта', val(d.mainText)),
+    boldPara('FAQ', val(d.faq)),
+    boldPara('Отзывы', val(d.reviews)),
+    boldPara('Нравится в референсе 1', val(d.ref1note)),
+    boldPara('Нравится в референсе 2', val(d.ref2note)),
+    boldPara('Дополнительно', val(d.extra)),
+    divider(),
+    h2('🔒 ВНУТРЕННИЙ БЛОК'),
+    h3('🤖 Промпт для AI-агента'),
+    para('Скопируй и вставь в ChatGPT / Claude / Cursor:'),
+    code(aiPrompt),
+    divider(),
+    h3('✅ Чеклист проекта'),
+    ...([
+      'Анкета получена и проверена',
+      'Все материалы от клиента собраны (фото, логотип, тексты)',
+      'Домен и хостинг настроены',
+      'Техническая почта создана',
+      'Первая версия сайта готова',
+      'Отправлена на согласование клиенту',
+      'Правки внесены',
+      'SSL установлен',
+      'Cookie/GDPR баннер добавлен',
+      'Google Analytics / Meta Pixel подключён',
+      'Мобильная версия проверена',
+      'SEO мета-теги заполнены',
+      'Скорость загрузки проверена',
+      'Финальное согласование от клиента',
+      'Оплата получена',
+      'Доступы переданы клиенту',
+      'Проект закрыт',
+    ].map(item => ({
+      object: 'block', type: 'to_do',
+      to_do: { rich_text: [{ text: { content: item } }], checked: false },
+    }))),
+  ].filter(Boolean);
 
   try {
     const response = await fetch('https://api.notion.com/v1/pages', {
@@ -167,7 +296,7 @@ export default async function handler(req, res) {
       body: JSON.stringify({
         parent: { database_id: NOTION_DATABASE_ID },
         properties,
-        ...(children.length && { children }),
+        children,
       }),
     });
 
