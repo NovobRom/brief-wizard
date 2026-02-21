@@ -1,10 +1,51 @@
+// ── Rate limiting (in-memory, resets per cold start) ──
+const rateLimitMap = new Map();
+const RATE_LIMIT_WINDOW_MS = 60 * 1000; // 1 minute
+const RATE_LIMIT_MAX = 5; // max requests per window
+
+function checkRateLimit(ip) {
+  const now = Date.now();
+  const entry = rateLimitMap.get(ip);
+  if (!entry || now - entry.firstRequest > RATE_LIMIT_WINDOW_MS) {
+    rateLimitMap.set(ip, { firstRequest: now, count: 1 });
+    return true;
+  }
+  if (entry.count >= RATE_LIMIT_MAX) return false;
+  entry.count++;
+  return true;
+}
+
+// ── Required fields ──
+const REQUIRED_FIELDS = ['brandName', 'tone', 'siteGoal', 'cta', 'languages', 'sections', 'contactPerson', 'contactMethod'];
+
+function validateRequiredFields(data) {
+  const missing = [];
+  for (const key of REQUIRED_FIELDS) {
+    const val = data[key];
+    if (Array.isArray(val)) {
+      if (!val.length) missing.push(key);
+    } else if (!val || !String(val).trim()) {
+      missing.push(key);
+    }
+  }
+  return missing;
+}
+
 export default async function handler(req, res) {
-  res.setHeader('Access-Control-Allow-Origin', '*');
+  // ── CORS ──
+  const allowedOrigin = process.env.ALLOWED_ORIGIN || '*';
+  res.setHeader('Access-Control-Allow-Origin', allowedOrigin);
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 
   if (req.method === 'OPTIONS') return res.status(200).end();
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
+
+  // ── Rate limit ──
+  const clientIp = req.headers['x-forwarded-for'] || req.socket?.remoteAddress || 'unknown';
+  if (!checkRateLimit(clientIp)) {
+    return res.status(429).json({ error: 'Too many requests. Please wait a minute.' });
+  }
 
   const NOTION_TOKEN = process.env.NOTION_TOKEN;
   const NOTION_DATABASE_ID = process.env.NOTION_DATABASE_ID;
@@ -13,13 +54,26 @@ export default async function handler(req, res) {
     return res.status(500).json({ error: 'Server configuration error' });
   }
 
-  const d = req.body;
+  const data = req.body;
+
+  // ── Server-side validation ──
+  if (!data || typeof data !== 'object') {
+    return res.status(400).json({ error: 'Invalid request body' });
+  }
+
+  const missingFields = validateRequiredFields(data);
+  if (missingFields.length) {
+    return res.status(400).json({ error: `Missing required fields: ${missingFields.join(', ')}` });
+  }
+
+  // ── Helpers ──
   const str = (v) => (v && String(v).trim()) || '';
   const arr = (v) => Array.isArray(v) ? v : (v ? [v] : []);
   const strOrNull = (v) => str(v) || null;
 
   const langLabel = { ru: '🇷🇺 Русский', en: '🇬🇧 English', ua: '🇺🇦 Українська' };
 
+  // ── Mappings (localized values → normalized Russian keys for Notion) ──
   const toneMap = {
     'Формальный': 'Формальный и профессиональный',
     'Formal': 'Формальный и профессиональный',
@@ -39,7 +93,7 @@ export default async function handler(req, res) {
 
   const goalMap = {
     'Продажа услуг': 'Продажа услуг', 'Sell services': 'Продажа услуг', 'Продаж послуг': 'Продажа услуг',
-    'Визитка': 'Визитка', 'Business card': 'Визитка',
+    'Визитка': 'Визитка', 'Business card': 'Визитка', 'Візитка': 'Визитка',
     'Онлайн-запись': 'Онлайн-запись', 'Online booking': 'Онлайн-запись', 'Онлайн-запис': 'Онлайн-запись',
     'Сбор заявок': 'Сбор заявок', 'Lead gen': 'Сбор заявок', 'Збір заявок': 'Сбор заявок',
     'Продажа товаров': 'Продажа товаров', 'Sell products': 'Продажа товаров', 'Продаж товарів': 'Продажа товаров',
@@ -57,26 +111,26 @@ export default async function handler(req, res) {
     'Контакты': 'Контакты', 'Contact': 'Контакты', 'Контакти': 'Контакты',
   };
 
-  const mapArr = (val, map) => arr(val).map(v => map[v] || v).filter(Boolean);
+  const mapArr = (val, map) => arr(val).map((v) => map[v] || v).filter(Boolean);
   const mapOne = (val, map) => map[val] || str(val);
 
   const projectTitle = [
-    str(d.brandName) || 'Новый клиент',
-    str(d.contactPerson) ? ` — ${str(d.contactPerson)}` : '',
+    str(data.brandName) || 'Новый клиент',
+    str(data.contactPerson) ? ` — ${str(data.contactPerson)}` : '',
   ].join('');
 
-  const budgetNum = d.budget
-    ? parseFloat(String(d.budget).replace(/[^0-9.]/g, '')) || null
+  const budgetNum = data.budget
+    ? parseFloat(String(data.budget).replace(/[^0-9.]/g, '')) || null
     : null;
 
   const cmsMap = (v) => {
     if (!v) return null;
-    if (['Да','Yes','Так'].includes(v)) return 'Да';
-    if (['Нет','No','Ні'].includes(v)) return 'Нет';
+    if (['Да', 'Yes', 'Так'].includes(v)) return 'Да';
+    if (['Нет', 'No', 'Ні'].includes(v)) return 'Нет';
     return 'Нужна консультация';
   };
 
-  // ── Notion properties ─────────────────────────────────────────────────────
+  // ── Notion properties ──
   const properties = {
     'Проект': { title: [{ text: { content: projectTitle } }] },
     'Статус': { select: { name: '📋 Анкета заполнена' } },
@@ -87,51 +141,51 @@ export default async function handler(req, res) {
   const setPhone = (key, val) => { if (str(val)) properties[key] = { phone_number: str(val) }; };
   const setUrl = (key, val) => { if (str(val)) properties[key] = { url: str(val) }; };
   const setSelect = (key, val) => { if (val) properties[key] = { select: { name: val } }; };
-  const setMulti = (key, vals) => { if (vals && vals.length) properties[key] = { multi_select: vals.map(n => ({ name: n })) }; };
+  const setMulti = (key, vals) => { if (vals && vals.length) properties[key] = { multi_select: vals.map((n) => ({ name: n })) }; };
 
-  setText('Клиент', d.brandName);
-  setText('Сфера деятельности', d.industry);
-  setText('УТП (преимущество)', d.usp);
-  setText('Целевая аудитория', d.audience);
-  setText('Контактное лицо', d.contactPerson);
-  setText('Способ связи', d.contactMethod);
-  setText('ЛПР (кто решает)', d.decisionMaker);
-  setText('Адрес (Google Maps)', d.address);
-  setText('Фирменные цвета', d.colors);
-  setText('Что НЕ нравится в дизайне', d.dislike);
-  setText('Telegram', d.contactTg);
+  setText('Клиент', data.brandName);
+  setText('Сфера деятельности', data.industry);
+  setText('УТП (преимущество)', data.usp);
+  setText('Целевая аудитория', data.audience);
+  setText('Контактное лицо', data.contactPerson);
+  setText('Способ связи', data.contactMethod);
+  setText('ЛПР (кто решает)', data.decisionMaker);
+  setText('Адрес (Google Maps)', data.address);
+  setText('Фирменные цвета', data.colors);
+  setText('Что НЕ нравится в дизайне', data.dislike);
+  setText('Telegram', data.contactTg);
 
-  setEmail('Email для заявок', d.contactEmail);
-  setEmail('Тех. почта', d.techEmail);
-  setPhone('WhatsApp', d.contactWa);
+  setEmail('Email для заявок', data.contactEmail);
+  setEmail('Тех. почта', data.techEmail);
+  setPhone('WhatsApp', data.contactWa);
 
-  setUrl('Текущий сайт', d.currentSite);
-  setUrl('Домен', d.domain);
-  setUrl('Референс 1', d.ref1);
-  setUrl('Референс 2', d.ref2);
-  setUrl('Ссылка на фото/медиа', d.photoLink);
-  setUrl('Instagram', d.instagram);
-  setUrl('Facebook', d.facebook);
-  setUrl('TikTok', d.tiktok);
+  setUrl('Текущий сайт', data.currentSite);
+  setUrl('Домен', data.domain);
+  setUrl('Референс 1', data.ref1);
+  setUrl('Референс 2', data.ref2);
+  setUrl('Ссылка на фото/медиа', data.photoLink);
+  setUrl('Instagram', data.instagram);
+  setUrl('Facebook', data.facebook);
+  setUrl('TikTok', data.tiktok);
 
   if (budgetNum) properties['Бюджет (€)'] = { number: budgetNum };
 
-  setSelect('Тон общения', mapOne(d.tone, toneMap));
-  setSelect('Статус домена', strOrNull(d.domainStatus));
-  setSelect('Хостинг', strOrNull(d.hosting));
-  setSelect('Онлайн-запись', strOrNull(d.booking));
-  setSelect('Админ-панель', cmsMap(d.cms));
-  setSelect('Обработка фото', strOrNull(d.photoStatus));
-  setSelect('Язык анкеты', langLabel[d.lang] || null);
+  setSelect('Тон общения', mapOne(data.tone, toneMap));
+  setSelect('Статус домена', strOrNull(data.domainStatus));
+  setSelect('Хостинг', strOrNull(data.hosting));
+  setSelect('Онлайн-запись', strOrNull(data.booking));
+  setSelect('Админ-панель', cmsMap(data.cms));
+  setSelect('Обработка фото', strOrNull(data.photoStatus));
+  setSelect('Язык анкеты', langLabel[data.lang] || null);
 
-  setMulti('Цель сайта', mapArr(d.siteGoal, goalMap));
-  setMulti('Целевое действие (CTA)', mapArr(d.cta, ctaMap));
-  setMulti('Языки сайта', arr(d.languages));
-  setMulti('Разделы сайта', mapArr(d.sections, sectionsMap));
-  setMulti('Заявки куда', arr(d.contactForm));
-  setMulti('Аналитика', arr(d.analytics));
+  setMulti('Цель сайта', mapArr(data.siteGoal, goalMap));
+  setMulti('Целевое действие (CTA)', mapArr(data.cta, ctaMap));
+  setMulti('Языки сайта', arr(data.languages));
+  setMulti('Разделы сайта', mapArr(data.sections, sectionsMap));
+  setMulti('Заявки куда', arr(data.contactForm));
+  setMulti('Аналитика', arr(data.analytics));
 
-  // ── Helpers for page body ─────────────────────────────────────────────────
+  // ── Helpers for page body ──
   const val = (v, fallback = '—') => str(v) || fallback;
   const valArr = (v, fallback = '—') => arr(v).length ? arr(v).join(', ') : fallback;
 
@@ -170,96 +224,113 @@ export default async function handler(req, res) {
     },
   });
 
-  // ── Build AI prompt with client data ─────────────────────────────────────
-  const siteType = valArr(d.siteGoal);
-  const sections = mapArr(d.sections, sectionsMap);
+  const callout = (text, emoji = '⚠️') => ({
+    object: 'block', type: 'callout',
+    callout: {
+      icon: { type: 'emoji', emoji },
+      rich_text: [{ text: { content: text } }],
+    },
+  });
+
+  // ── Build AI prompt from template ──
+  const siteType = valArr(data.siteGoal);
+  const sections = mapArr(data.sections, sectionsMap);
 
   const contactDetails = [];
-  if (str(d.contactEmail)) contactDetails.push(`Email: ${str(d.contactEmail)}`);
-  if (str(d.contactTg)) contactDetails.push(`Telegram: ${str(d.contactTg)}`);
-  if (str(d.contactWa)) contactDetails.push(`WhatsApp: ${str(d.contactWa)}`);
+  if (str(data.contactEmail)) contactDetails.push(`Email: ${str(data.contactEmail)}`);
+  if (str(data.contactTg)) contactDetails.push(`Telegram: ${str(data.contactTg)}`);
+  if (str(data.contactWa)) contactDetails.push(`WhatsApp: ${str(data.contactWa)}`);
 
   const refs = [];
-  if (str(d.ref1)) refs.push(`${str(d.ref1)}${str(d.ref1note) ? ` (${str(d.ref1note)})` : ''}`);
-  if (str(d.ref2)) refs.push(`${str(d.ref2)}${str(d.ref2note) ? ` (${str(d.ref2note)})` : ''}`);
+  if (str(data.ref1)) refs.push(`${str(data.ref1)}${str(data.ref1note) ? ` (${str(data.ref1note)})` : ''}`);
+  if (str(data.ref2)) refs.push(`${str(data.ref2)}${str(data.ref2note) ? ` (${str(data.ref2note)})` : ''}`);
 
   const socialLinks = [];
-  if (str(d.instagram)) socialLinks.push(`Instagram: ${str(d.instagram)}`);
-  if (str(d.facebook)) socialLinks.push(`Facebook: ${str(d.facebook)}`);
-  if (str(d.tiktok)) socialLinks.push(`TikTok: ${str(d.tiktok)}`);
+  if (str(data.instagram)) socialLinks.push(`Instagram: ${str(data.instagram)}`);
+  if (str(data.facebook)) socialLinks.push(`Facebook: ${str(data.facebook)}`);
+  if (str(data.tiktok)) socialLinks.push(`TikTok: ${str(data.tiktok)}`);
 
-  const aiPrompt = `Create a professional ${siteType} website for ${val(d.brandName)}.
+  const domainStatus = str(data.domainStatus) || '—';
+  const sslStatus = domainStatus === 'Уже куплен' || domainStatus === 'Already bought' || domainStatus === 'Вже куплено'
+    ? 'Нужен'
+    : '—';
 
-Business: ${val(d.industry)}
-USP: ${val(d.usp)}
-Target audience: ${val(d.audience)}
-Tone of voice: ${mapOne(d.tone, toneMap) || val(d.tone)}
-Primary CTA: ${valArr(d.cta)}
-Languages: ${valArr(d.languages)}
+  const aiPrompt = `Create a professional ${siteType} website for ${val(data.brandName)}.
+
+Business: ${val(data.industry)}
+USP: ${val(data.usp)}
+Target audience: ${val(data.audience)}
+Tone of voice: ${mapOne(data.tone, toneMap) || val(data.tone)}
+Primary CTA: ${valArr(data.cta)}
+Languages: ${valArr(data.languages)}
 
 Pages/sections needed:
-${sections.length ? sections.map(s => `- ${s}`).join('\n') : '— not specified'}
+${sections.length ? sections.map((s) => `- ${s}`).join('\n') : '— not specified'}
 
 Services:
-${val(d.servicesText)}
+${val(data.servicesText)}
 
 Design preferences:
 - Liked references: ${refs.length ? refs.join('\n  ') : '— not specified'}
-- Avoid: ${val(d.dislike)}
-- Brand colors: ${val(d.colors)}
-- Photo status: ${val(d.photoStatus)}
-- Photo link: ${val(d.photoLink)}
+- Avoid: ${val(data.dislike)}
+- Brand colors: ${val(data.colors)}
+- Logo: attached
 
 Functional requirements:
 - Contact form → ${contactDetails.length ? contactDetails.join(', ') : '— not specified'}
-- Booking: ${val(d.booking)}
+- Booking: ${val(data.booking)}
 - Social links: ${socialLinks.length ? socialLinks.join(', ') : '— not specified'}
-- Google Maps: ${val(d.address)}
-- Analytics: ${valArr(d.analytics)}
-- CMS needed: ${cmsMap(d.cms) || '— not specified'}
+- Google Maps: ${val(data.address)}
+- Analytics: ${valArr(data.analytics)}
+- CMS needed: ${cmsMap(data.cms) || '— not specified'}
 
 Content provided:
-${val(d.mainText)}
+${val(data.mainText)}
 
 FAQ:
-${val(d.faq)}
+${val(data.faq)}
 
 Reviews/testimonials:
-${val(d.reviews)}
+${val(data.reviews)}
 
 Technical:
-- Domain: ${val(d.domain)} (${val(d.domainStatus)})
-- Hosting: ${val(d.hosting)}
-- Tech email: ${val(d.techEmail)}
+- Domain: ${val(data.domain)}
+- SSL: ${sslStatus}
 - GDPR/Cookie compliance: required (EU/Lithuania)
-
-Budget: ${budgetNum ? `€${budgetNum}` : '— not specified'}
-Deadline: ${val(d.deadline)}
-Contact: ${val(d.contactPerson)} — ${val(d.contactMethod)}
-Decision maker: ${val(d.decisionMaker)}
-
-Additional notes:
-${val(d.extra)}
 
 Please create a modern, responsive, SEO-optimized website with clean design.`;
 
-  // ── Page children blocks ──────────────────────────────────────────────────
+  // ── Page children blocks (Notion page body) ──
   const children = [
+    // Brief details
     h2('📝 Детали брифа'),
     divider(),
-    boldPara('Услуги и цены', val(d.servicesText)),
-    boldPara('Тексты для сайта', val(d.mainText)),
-    boldPara('FAQ', val(d.faq)),
-    boldPara('Отзывы', val(d.reviews)),
-    boldPara('Нравится в референсе 1', val(d.ref1note)),
-    boldPara('Нравится в референсе 2', val(d.ref2note)),
-    boldPara('Дополнительно', val(d.extra)),
+    boldPara('Услуги и цены', val(data.servicesText)),
+    boldPara('Тексты для сайта', val(data.mainText)),
+    boldPara('FAQ', val(data.faq)),
+    boldPara('Отзывы', val(data.reviews)),
+    boldPara('Нравится в референсе 1', val(data.ref1note)),
+    boldPara('Нравится в референсе 2', val(data.ref2note)),
+    boldPara('Дополнительно', val(data.extra)),
     divider(),
-    h2('🔒 ВНУТРЕННИЙ БЛОК'),
+
+    // Internal block
+    h2('🔒 ВНУТРЕННИЙ БЛОК (НЕ ПОКАЗЫВАТЬ КЛИЕНТУ)'),
+    callout('Этот раздел только для внутреннего использования. Перед отправкой клиенту удалите всё ниже этой линии.'),
+    divider(),
+
+    // Project notes
+    h3('📝 Заметки по проекту'),
+    para('Твои заметки, наблюдения, договорённости с клиентом'),
+    divider(),
+
+    // AI prompt
     h3('🤖 Промпт для AI-агента'),
-    para('Скопируй и вставь в ChatGPT / Claude / Cursor:'),
+    para('Скопируй заполненные данные из анкеты и вставь в этот шаблон промпта:'),
     code(aiPrompt),
     divider(),
+
+    // Project checklist
     h3('✅ Чеклист проекта'),
     ...([
       'Анкета получена и проверена',
@@ -279,10 +350,18 @@ Please create a modern, responsive, SEO-optimized website with clean design.`;
       'Оплата получена',
       'Доступы переданы клиенту',
       'Проект закрыт',
-    ].map(item => ({
+    ].map((item) => ({
       object: 'block', type: 'to_do',
       to_do: { rich_text: [{ text: { content: item } }], checked: false },
     }))),
+    divider(),
+
+    // Working links
+    h3('📁 Рабочие ссылки'),
+    boldPara('Рабочая версия сайта', 'ссылка'),
+    boldPara('Папка с материалами клиента', 'ссылка'),
+    boldPara('Логин/пароль от хостинга', 'хранить в отдельном менеджере паролей'),
+    boldPara('Figma / макет', 'ссылка'),
   ].filter(Boolean);
 
   try {
