@@ -56,13 +56,14 @@ export const fields = [
                 lt: ["Paslaugų pardavimas", "Vizitinė kortelė", "Registracija internetu", "Užklausų surinkimas", "Prekių pardavimas"],
             },
         }),
-        createField("cta", "mc", { ru: "Целевое действие", en: "Target action", ua: "Цільова дія", lt: "Tikslinis veiksmas" }, {
+        createField("cta", "mc", { ru: "Целевое действие пользователя", en: "Primary user action", ua: "Цільова дія користувача", lt: "Pagrindinis vartotojo veiksmas" }, {
             required: true,
+            hint: { ru: "Что должен сделать посетитель в идеале?", en: "What is the ideal action a visitor should take?", ua: "Що в ідеалі має зробити відвідувач?", lt: "Koks yra idealus lankytojo veiksmas?" },
             choices: {
-                ru: ["Позвонить", "Записаться", "Написать", "Оставить заявку", "Купить"],
-                en: ["Call", "Book", "Message", "Enquiry", "Purchase"],
-                ua: ["Зателефонувати", "Записатися", "Написати", "Заявка", "Купити"],
-                lt: ["Paskambinti", "Užsiregistruoti", "Parašyti", "Palikti užklausą", "Pirkti"],
+                ru: ["Позвонить", "Записаться онлайн", "Написать в мессенджер", "Оставить заявку в форме", "Купить товар"],
+                en: ["Call by phone", "Book online", "Message in messenger", "Submit a form", "Buy a product"],
+                ua: ["Зателефонувати", "Записатися онлайн", "Написати в месенджер", "Залишити заявку у формі", "Купити товар"],
+                lt: ["Paskambinti", "Užsiregistruoti internetu", "Parašyti per Messenger", "Pateikti užklausą formoje", "Nupirkti prekę"],
             },
         }),
         createField("languages", "mc", { ru: "Языки сайта", en: "Languages", ua: "Мови сайту", lt: "Svetainės kalbos" }, {
@@ -101,13 +102,19 @@ export const fields = [
         createField("colors", "text", { ru: "Фирменные цвета", en: "Brand colors", ua: "Фірмові кольори", lt: "Firminės spalvos" }, {
             hint: { ru: "HEX-коды или названия", en: "HEX codes or names", ua: "HEX-коди або назви", lt: "HEX kodai arba pavadinimai" },
         }),
-        createField("ref1", "url", { ru: "Референс #1", en: "Reference #1", ua: "Референс #1", lt: "Nuoroda #1" }),
-        createField("ref1note", "text", { ru: "Что нравится в #1?", en: "What do you like about #1?", ua: "Що подобається в #1?", lt: "Kas patinka #1?" }),
-        createField("ref2", "url", { ru: "Референс #2", en: "Reference #2", ua: "Референс #2", lt: "Nuoroda #2" }),
-        createField("ref2note", "text", { ru: "Что нравится в #2?", en: "What do you like about #2?", ua: "Що подобається в #2?", lt: "Kas patinka #2?" }),
-        createField("dislike", "ta", { ru: "Что НЕ нравится?", en: "What do you NOT like?", ua: "Що НЕ подобається?", lt: "Kas NEPATINKA?" }),
-        createField("photoLink", "url", { ru: "Ссылка на фото", en: "Photo link", ua: "Посилання на фото", lt: "Nuoroda į nuotraukas" }, {
-            hint: { ru: "Google Drive / Dropbox", en: "Google Drive / Dropbox", ua: "Google Drive / Dropbox", lt: "Google Drive / Dropbox" },
+        createField("ref1", "url", { ru: "Пример сайта, который вам нравится #1", en: "Example website you like #1", ua: "Приклад сайту, який вам подобається #1", lt: "Svetainės pavyzdys, kuris jums patinka #1" }, {
+            hint: { ru: "Вставьте ссылку на любой сайт-ориентир (референс)", en: "Paste a link to any reference website", ua: "Вставте посилання на будь-який сайт-орієнтир (референс)", lt: "Įklijuokite nuorodą į bet kokią pavyzdinę svetainę (referencą)" }
+        }),
+        createField("ref1note", "text", { ru: "Что конкретно нравится в примере #1?", en: "What exactly do you like about example #1?", ua: "Що конкретно подобається у прикладі #1?", lt: "Kas tiksliai patinka pavyzdyje #1?" }, {
+            hint: { ru: "Например: цвета, шрифты, расположение блоков, анимации", en: "For example: colors, fonts, layout, animations", ua: "Наприклад: кольори, шрифти, розташування блоків, анімації", lt: "Pavyzdžiui: spalvos, šriftai, blokų išdėstymas, animacijos" }
+        }),
+        createField("ref2", "url", { ru: "Пример сайта, который вам нравится #2", en: "Example website you like #2", ua: "Приклад сайту, який вам подобається #2", lt: "Svetainės pavyzdys, kuris jums patinka #2" }),
+        createField("ref2note", "text", { ru: "Что конкретно нравится в примере #2?", en: "What exactly do you like about example #2?", ua: "Що конкретно подобається у прикладі #2?", lt: "Kas tiksliai patinka pavyzdyje #2?" }),
+        createField("dislike", "ta", { ru: "Анти-примеры (что точно НЕ нужно)", en: "Anti-examples (what NOT to do)", ua: "Анти-приклади (чого точно НЕ треба)", lt: "Anti-pavyzdžiai (ko tiksliai NEREIKIA)" }, {
+            hint: { ru: "Что вас раздражает на других сайтах?", en: "What annoys you on other websites?", ua: "Що вас дратує на інших сайтах?", lt: "Kas jus erzina kitose svetainėse?" }
+        }),
+        createField("photoLink", "url", { ru: "Ссылка на ваши фото/материалы", en: "Link to your photos/materials", ua: "Посилання на ваші фото/матеріали", lt: "Nuoroda į jūsų nuotraukas/medžiagas" }, {
+            hint: { ru: "Ссылку на папку (Google Drive, Dropbox, Яндекс.Диск)", en: "Link to a folder (Google Drive, Dropbox, etc.)", ua: "Посилання на папку (Google Drive, Dropbox і т.д.)", lt: "Nuoroda į aplanką (Google Drive, Dropbox ir kt.)" },
         }),
         createField("photoStatus", "sel", { ru: "Состояние фото", en: "Photo status", ua: "Стан фото", lt: "Nuotraukų būklė" }, {
             choices: {
@@ -155,33 +162,33 @@ export const fields = [
                 lt: ["Google Analytics", "Meta Pixel", "Nereikia", "Konsultacija"],
             },
         }),
-        createField("cms", "sel", { ru: "Админ-панель", en: "Admin panel", ua: "Адмін-панель", lt: "Admin panelė" }, {
+        createField("cms", "sel", { ru: "Нужна ли админ-панель (CMS)?", en: "Do you need an admin panel (CMS)?", ua: "Чи потрібна адмін-панель (CMS)?", lt: "Ar reikalinga administravimo panelė (CMS)?" }, {
             choices: {
-                ru: ["Да", "Нет", "Консультация"],
-                en: ["Yes", "No", "Consultation"],
-                ua: ["Так", "Ні", "Консультація"],
-                lt: ["Taip", "Ne", "Konsultacija"],
+                ru: ["Да, хочу сам менять тексты и фото", "Нет, сайт будет меняться редко", "Нужна консультация"],
+                en: ["Yes, I want to edit content myself", "No, the site won't change often", "Need consultation"],
+                ua: ["Так, хочу сам міняти тексти та фото", "Ні, сайт змінюватиметься рідко", "Потрібна консультація"],
+                lt: ["Taip, noriu pats keisti tekstus ir nuotraukas", "Ne, svetainė keisis retai", "Reikia konsultacijos"],
             },
-            hint: { ru: "Менять контент самому", en: "Change content yourself", ua: "Міняти контент самому", lt: "Patiems keisti turinį" },
+            hint: { ru: "Это система управления сайтом (WordPress и т.д.)", en: "A Content Management System (like WordPress)", ua: "Це система управління сайтом (WordPress і т.д.)", lt: "Tai turinio valdymo sistema (pvz., WordPress)" },
         }),
     ],
     [
         // Step 5: Technical
-        createField("domainStatus", "sel", { ru: "Домен", en: "Domain", ua: "Домен", lt: "Domenas" }, {
+        createField("domainStatus", "sel", { ru: "Домен (имя сайта в интернете: mysite.com)", en: "Domain (website address: mysite.com)", ua: "Домен (ім'я сайту в інтернеті: mysite.com)", lt: "Domenas (svetainės adresas: mysite.com)" }, {
             choices: {
-                ru: ["Уже куплен", "Нужна помощь", "Есть идеи"],
-                en: ["Already bought", "Need help", "Have ideas"],
-                ua: ["Вже куплено", "Потрібна допомога", "Є ідеї"],
-                lt: ["Jau nupirktas", "Reikia pagalbos", "Yra idėjų"],
+                ru: ["Уже куплен", "Пока нет, нужна помощь с выбором", "Пока нет, но есть идеи названия"],
+                en: ["Already purchased", "Not yet, need help choosing", "Not yet, but I have ideas for the name"],
+                ua: ["Вже куплено", "Поки немає, потрібна допомога з вибором", "Поки немає, але є ідеї назви"],
+                lt: ["Jau nupirktas", "Dar ne, reikia pagalbos pasirenkant", "Dar ne, bet turiu idėjų pavadinimui"],
             },
         }),
-        createField("domain", "url", { ru: "Домен (если есть)", en: "Domain (if any)", ua: "Домен (якщо є)", lt: "Domenas (jei yra)" }),
-        createField("hosting", "sel", { ru: "Хостинг", en: "Hosting", ua: "Хостинг", lt: "Talpinimas" }, {
+        createField("domain", "url", { ru: "Ваш домен (если уже куплен)", en: "Your domain (if already purchased)", ua: "Ваш домен (якщо вже куплено)", lt: "Jūsų domenas (jei jau nupirktas)" }),
+        createField("hosting", "sel", { ru: "Хостинг (сервер, где хранятся файлы сайта)", en: "Hosting (server where files are stored)", ua: "Хостинг (сервер, де зберігаються файли сайту)", lt: "Talpinimas (serveris, kur saugomi svetainės failai)" }, {
             choices: {
-                ru: ["Уже есть", "Нужна помощь", "Не знаю что это"],
-                en: ["Already have", "Need help", "Don't know"],
-                ua: ["Вже є", "Потрібна допомога", "Не знаю що це"],
-                lt: ["Jau yra", "Reikia pagalbos", "Nežinau kas tai"],
+                ru: ["Уже есть купленный хостинг", "Нет хостинга, нужна помощь", "Не знаю что это, доверюсь вам"],
+                en: ["Already have purchased hosting", "No hosting, need help", "Don't know what this is, will trust you"],
+                ua: ["Вже є куплений хостинг", "Немає хостингу, потрібна допомога", "Не знаю що це, довірюся вам"],
+                lt: ["Jau turiu nupirktą talpinimą", "Neturiu talpinimo, reikia pagalbos", "Nežinau kas tai, pasikliausiu jumis"],
             },
         }),
         createField("techEmail", "text", { ru: "Тех. почта", en: "Tech email", ua: "Тех. пошта", lt: "Techninis el. paštas" }),

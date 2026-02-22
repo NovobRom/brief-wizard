@@ -28,7 +28,7 @@ function loadSavedLang() {
 }
 
 export default function BriefWizard() {
-  const [lang, setLang] = useState(loadSavedLang);
+  const [lang, setLang] = useState(() => loadSavedLang() || "en");
   const [theme, setTheme] = useState("dark");
   const [step, setStep] = useState(loadSavedLang() ? 0 : -1);
   const [data, setData] = useState(loadSavedData);
@@ -38,7 +38,7 @@ export default function BriefWizard() {
   const [loading, setLoading] = useState(false);
   const [submitError, setSubmitError] = useState(null);
 
-  const currentLang = lang || "ru";
+  const currentLang = lang || "en";
   const currentTheme = themes[theme];
   const strings = uiStrings[currentLang];
   const currentStepNames = stepNames[currentLang];
