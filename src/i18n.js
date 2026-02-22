@@ -14,6 +14,7 @@ export const uiStrings = {
         successTitle: "Спасибо!",
         successMessage: "Мы получили ваш бриф и свяжемося в течение 24 часов.",
         otherLanguages: "Другие языки",
+        start: "Начать →",
     },
     en: {
         required: "Required",
@@ -30,6 +31,7 @@ export const uiStrings = {
         successTitle: "Thank you!",
         successMessage: "We've received your brief and will contact you within 24 hours.",
         otherLanguages: "Other languages",
+        start: "Start →",
     },
     ua: {
         required: "Обов'язкове",
@@ -46,6 +48,7 @@ export const uiStrings = {
         successTitle: "Дякуємо!",
         successMessage: "Ми отримали ваш бриф і зв'яжемося протягом 24 годин.",
         otherLanguages: "Інші мови",
+        start: "Почати →",
     },
     lt: {
         required: "Privaloma",
@@ -62,6 +65,7 @@ export const uiStrings = {
         successTitle: "Ačiū!",
         successMessage: "Gavome jūsų briefą ir susisieksime per 24 valandas.",
         otherLanguages: "Kitos kalbos",
+        start: "Pradėti →",
     },
 };
 

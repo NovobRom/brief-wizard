@@ -160,6 +160,7 @@ export default function BriefWizard() {
           currentTheme={currentTheme}
           uiStrings={strings}
           lang={lang}
+          setLang={setLang}
           fade={fade}
           onStart={startWithLang}
         />
