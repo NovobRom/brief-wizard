@@ -13,6 +13,7 @@ export const uiStrings = {
         heroSubtitle: "Заполните бриф — это займёт ~10 минут. Чем подробнее ответите, тем точнее результат.",
         successTitle: "Спасибо!",
         successMessage: "Мы получили ваш бриф и свяжемося в течение 24 часов.",
+        otherLanguages: "Другие языки",
     },
     en: {
         required: "Required",
@@ -28,6 +29,7 @@ export const uiStrings = {
         heroSubtitle: "Fill out this brief — it takes about 10 minutes. The more detail, the better.",
         successTitle: "Thank you!",
         successMessage: "We've received your brief and will contact you within 24 hours.",
+        otherLanguages: "Other languages",
     },
     ua: {
         required: "Обов'язкове",
@@ -43,6 +45,23 @@ export const uiStrings = {
         heroSubtitle: "Заповніть бриф — це займе ~10 хвилин. Чим детальніше, тим точніше результат.",
         successTitle: "Дякуємо!",
         successMessage: "Ми отримали ваш бриф і зв'яжемося протягом 24 годин.",
+        otherLanguages: "Інші мови",
+    },
+    lt: {
+        required: "Privaloma",
+        optional: "Neprivaloma",
+        placeholder: "Įveskite atsakymą...",
+        urlPlaceholder: "https://...",
+        next: "Toliau →",
+        back: "← Atgal",
+        submit: "Siųsti briefą",
+        of: "iš",
+        sending: "Siunčiama...",
+        heroTitle: "Sukursime jūsų tobulą svetainę",
+        heroSubtitle: "Užpildykite briefą – tai užtruks apie 10 minučių. Kuo detaliau atsakysite, tuo tikslesnis rezultatas.",
+        successTitle: "Ačiū!",
+        successMessage: "Gavome jūsų briefą ir susisieksime per 24 valandas.",
+        otherLanguages: "Kitos kalbos",
     },
 };
 
@@ -73,6 +92,15 @@ export const stepNames = {
         ["Функціонал", "Що сайт повинен вміти?"],
         ["Технічна частина", "Домен та хостинг"],
         ["Організаційне", "Фінальні деталі"],
+    ],
+    lt: [
+        ["Apie jūsų verslą", "Papasakokite apie save"],
+        ["Svetainės tikslai", "Ką svetainė turėtų daryti?"],
+        ["Struktūra", "Kokie skyriai reikalingi?"],
+        ["Vizualinis stilius", "Parodykite, kas jums patinka"],
+        ["Funkcionalumas", "Ką svetainė turėtų mokėti?"],
+        ["Techninė dalis", "Domenas ir talpinimas"],
+        ["Organizacinis", "Galutinės detalės"],
     ],
 };
 

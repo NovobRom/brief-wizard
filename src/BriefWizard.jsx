@@ -235,7 +235,7 @@ export default function BriefWizard() {
 
       {/* Language switcher */}
       <div className="lang-switcher" style={{ background: currentTheme.switchBg }}>
-        {["ru", "en", "ua"].map((code) => (
+        {["ru", "en", "ua", "lt"].map((code) => (
           <button
             key={code}
             type="button"
